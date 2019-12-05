@@ -1,0 +1,6 @@
+-c --cpu Cortex-M3 -D__MICROLIB -g -O0 --apcs=interwork -I ..\Libraries\STM32F10x_StdPeriph_Driver\inc -I ..\Libraries\CMSIS\CM3\DeviceSupport\ST\STM32F10x -I ..\Libraries\CMSIS\CM3\CoreSupport -I ..\User
+-IC:\Keil_v5\ARM\RV31\INC
+-IC:\Keil_v5\ARM\CMSIS\Include
+-IC:\Keil_v5\ARM\INC\ST\STM32F10x
+-D__UVISION_VERSION="524" -DUSE_STDPERIPH_DRIVER -DSTM32F10X_MD
+-o ..\objects\bsp_com_usart.o --omf_browse ..\objects\bsp_com_usart.crf --depend ..\objects\bsp_com_usart.d "..\User\usart\bsp_com_usart.c"
