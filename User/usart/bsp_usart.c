@@ -11,6 +11,30 @@
 
 #include "bsp_usart.h"
 
+uint8_t RxBuffer[RxBufferSize];
+__IO uint8_t RxCounter = 0x00;
+uint8_t NbrOfDataToRead = RxBufferSize;
+
+/**
+  * @brief  Configures the nested vectored interrupt controller.
+  * @param  None
+  * @retval None
+  */
+void NVIC_USART_Configuration(void)
+{
+  NVIC_InitTypeDef NVIC_InitStructure;
+
+  /* Configure the NVIC Preemption Priority Bits */  
+  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+  
+  /* Enable the USARTy Interrupt */
+  NVIC_InitStructure.NVIC_IRQChannel = USARTy_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+}
+
  /**
   * @brief  USART GPIO Configure
   * @param  None
@@ -21,41 +45,48 @@ void USART_Config(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	USART_InitTypeDef USART_InitStructure;
 
-	// 打开串口GPIO的时钟
-	DEBUG_USART_GPIO_APBxClkCmd(DEBUG_USART_GPIO_CLK, ENABLE);
+  /* Enable GPIO clock */
+  RCC_APB2PeriphClockCmd(USARTy_GPIO_CLK | RCC_APB2Periph_AFIO, ENABLE);
+
+  /* Enable USARTy Clock */
+  RCC_APB2PeriphClockCmd(USARTy_CLK, ENABLE);
+
+  /* Configure USARTy Tx as alternate function push-pull */
+  GPIO_InitStructure.GPIO_Pin = USARTy_TxPin;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+  GPIO_Init(USARTy_GPIO, &GPIO_InitStructure);
+
+  /* Configure USARTy Rx as input floating */
+  GPIO_InitStructure.GPIO_Pin = USARTy_RxPin;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  GPIO_Init(USARTy_GPIO, &GPIO_InitStructure);
 	
-	// 打开串口外设的时钟
-	DEBUG_USART_APBxClkCmd(DEBUG_USART_CLK, ENABLE);
+/* USARTy and USARTz configuration ------------------------------------------------------*/
+  /* USARTy and USARTz configured as follow:
+        - BaudRate = 115200 baud  
+        - Word Length = 8 Bits
+        - One Stop Bit
+        - No parity
+        - Hardware flow control disabled (RTS and CTS signals)
+        - Receive and transmit enabled
+  */
+  USART_InitStructure.USART_BaudRate = 115200;
+  USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+  USART_InitStructure.USART_StopBits = USART_StopBits_1;
+  USART_InitStructure.USART_Parity = USART_Parity_No;
+  USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+  USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 
-	// 将USART Tx的GPIO配置为推挽复用模式
-	GPIO_InitStructure.GPIO_Pin = DEBUG_USART_TX_GPIO_PIN;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(DEBUG_USART_TX_GPIO_PORT, &GPIO_InitStructure);
+  /* Configure USARTy */
+  USART_Init(USARTy, &USART_InitStructure);
+  
+  /* Enable USARTy Receive and Transmit interrupts */
+//  USART_ITConfig(USARTy, USART_IT_RXNE, ENABLE);
+//  USART_ITConfig(USARTy, USART_IT_TXE, ENABLE);
 
-  // 将USART Rx的GPIO配置为浮空输入模式
-	GPIO_InitStructure.GPIO_Pin = DEBUG_USART_RX_GPIO_PIN;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(DEBUG_USART_RX_GPIO_PORT, &GPIO_InitStructure);
-	
-	// 配置串口的工作参数
-	// 配置波特率
-	USART_InitStructure.USART_BaudRate = DEBUG_USART_BAUDRATE;
-	// 配置 针数据字长
-	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-	// 配置停止位
-	USART_InitStructure.USART_StopBits = USART_StopBits_1;
-	// 配置校验位
-	USART_InitStructure.USART_Parity = USART_Parity_No ;
-	// 配置硬件流控制
-	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-	// 配置工作模式，收发一起
-	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-	// 完成串口的初始化配置
-	USART_Init(DEBUG_USARTx, &USART_InitStructure);
-
-	// 使能串口
-	USART_Cmd(DEBUG_USARTx, ENABLE);
+  /* Enable the USARTy */
+  USART_Cmd(USARTy, ENABLE);
 }
 
 
@@ -63,10 +94,10 @@ void USART_Config(void)
 int fputc(int ch, FILE *f)
 {
 		/* 发送一个字节数据到串口 */
-		USART_SendData(DEBUG_USARTx, (uint8_t) ch);
+		USART_SendData(USARTy, (uint8_t) ch);
 
 		/* 等待发送完毕 */
-		while (USART_GetFlagStatus(DEBUG_USARTx, USART_FLAG_TXE) == RESET);
+		while (USART_GetFlagStatus(USARTy, USART_FLAG_TXE) == RESET);
 
 		return (ch);
 }
@@ -75,9 +106,42 @@ int fputc(int ch, FILE *f)
 int fgetc(FILE *f)
 {
 		/* 等待串口输入数据 */
-		while (USART_GetFlagStatus(DEBUG_USARTx, USART_FLAG_RXNE) == RESET);
+		while (USART_GetFlagStatus(USARTy, USART_FLAG_RXNE) == RESET);
 
-		return (int)USART_ReceiveData(DEBUG_USARTx);
+		return (int)USART_ReceiveData(USARTy);
+}
+
+/**
+  * @brief  Gets numeric values from the hyperterminal.
+  * @param  None
+  * @retval None
+  */
+uint8_t USART_Scanf(uint32_t value)
+{
+  uint32_t index = 0;
+  uint32_t tmp[2] = {0, 0};
+
+  while (index < 2)
+  {
+    /* Loop until RXNE = 1 */
+    while (USART_GetFlagStatus(USARTy, USART_FLAG_RXNE) == RESET)
+    {}
+    tmp[index++] = (USART_ReceiveData(USARTy));
+    if ((tmp[index - 1] < 0x30) || (tmp[index - 1] > 0x39))
+    {
+      printf("\n\rPlease enter valid number between 0 and 9");
+      index--;
+    }
+  }
+  /* Calculate the Corresponding value */
+  index = (tmp[1] - 0x30) + ((tmp[0] - 0x30) * 10);
+  /* Checks */
+  if (index > value)
+  {
+    printf("\n\rPlease enter valid number between 0 and %d", value);
+    return 0xFF;
+  }
+  return index;
 }
 
 /*****************  发送一个字符 **********************/
@@ -116,7 +180,7 @@ uint8_t Usart_RecByte(USART_TypeDef *pUSARTx)
 void Usart_RecArray(USART_TypeDef *pUSARTx, uint8_t *arr)
 {
 	unsigned int k;
-  for(k=0;k<PCCOMMAND_LENGTH;k++)
+  for(k=0;k<RxBufferSize;k++)
   {
 			*(arr+k) = Usart_RecByte(pUSARTx);
 			if(k>1)

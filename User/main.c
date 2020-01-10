@@ -25,6 +25,7 @@
 #include "bsp_gpio.h"
 #include "gm3p_configure.h"
 #include "bsp_tim.h"
+#include "bsp_rtc.h"
 
 
 /** @addtogroup STM32F10x_StdPeriph_Template
@@ -36,13 +37,20 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 uint8_t i;
-uint8_t PCCommand[PCCOMMAND_LENGTH] = {0};	// 接收上位机命令数组
-extern uint8_t gps_on;
-extern uint8_t gps_net;
-extern uint8_t gps_heart_on;
-extern uint8_t gps_heart_time;
-extern uint8_t gps_heart_out;
-extern uint8_t gps_restart_flag;
+extern uint8_t RxBuffer[];
+__IO uint32_t interval;
+__IO uint32_t SysTickRestart = 0;
+__IO uint32_t EnterSTOPMode = 0;
+__IO uint8_t MainState = 0;
+__IO uint8_t RecState = 0;
+extern __IO uint8_t gps_on;
+extern __IO uint8_t gps_net;
+extern __IO uint8_t gps_heart_on;
+extern __IO uint8_t gps_heart_time;
+extern __IO uint8_t gps_heart_out;
+extern __IO uint8_t gps_restart_flag;
+extern __IO uint32_t Delay_second_time;
+uint32_t Delay_time;
 /* Private function prototypes -----------------------------------------------*/
 void Delay(__IO uint32_t nCount);
 
@@ -64,8 +72,12 @@ int main(void)
 
   /* Initialize CHARGE, POWER_KEY, Reload, Reload, RESET and COM port(USART) available */
 	GPIO_Config();
+	NVIC_USART_Configuration();
 	USART_Config();
-	systick_init();
+	RTC_Alarm_Config();
+	interval = 300;
+	Interval_Init();
+	SysTick_Configuration();
 	gps_on = 0x0;
 	gps_net = 0x0;
 	gps_heart_on = 0x0;
@@ -80,25 +92,32 @@ int main(void)
   {
 		if(gps_restart_flag == 0x1)
 		{
+			MainState = 0;
 			if(gps_on == 0x1 && gps_net == 0x1 && gps_heart_on == 0x1 && gps_heart_out == 0x1)
 			{
 				printf("GPS+GPRS module ready\r\n");
-				for (i=0; i<PCCOMMAND_LENGTH; i++) //clear array
-					{PCCommand[i] = 0;}
-				Usart_RecArray(DEBUG_USARTx, PCCommand);
-				if(PCCommand[0] == 0xAB && PCCommand[1] == 0xCD && PCCommand[2] == 0x4F && PCCommand[3] == 0x4B)
+				for (i=0; i<RxBufferSize; i++) //clear array
+					{RxBuffer[i] = 0;}
+				USART_ITConfig(USARTy, USART_IT_IDLE, ENABLE);
+				USART_ITConfig(USARTy, USART_IT_RXNE, ENABLE);
+				Delay_time = 0xFFFFF;
+				while(RecState == 0 && Delay_time != 0)
+				{
+					Delay_time--;
+				}
+				if(RxBuffer[0] == 0xAB && RxBuffer[1] == 0xCD && RxBuffer[2] == 0x4F && RxBuffer[3] == 0x4B)
 				{
 					printf("GPS+GPRS module will turn off in three seconds\r\n");
 					printf("...3...\r\n");
-					Delay_Second();
+					SysTickDelay(10);
 					printf("...2...\r\n");
-					Delay_Second();
+					SysTickDelay(10);
 					printf("...1...\r\n");
-					Delay_Second();
+					SysTickDelay(10);
 					
 					POWER_KEY_OFF();
-					Delay_Second();
-					Delay_Second();
+					SysTickDelay(10);
+					SysTickDelay(10);
 					RESET_KEY_OFF();
 					gps_on = 0x0;
 					gps_net = 0x0;
@@ -107,12 +126,32 @@ int main(void)
 					gps_heart_out = 0x0;
 					gps_restart_flag = 0x0;
 				}
+				RecState = 0;
 			}
-			else{
+			else
+			{
 				GM3P_INIT();
 			}
 		}
-
+		MainState = 1;
+		Time_Show();
+		Interval_Adjust();
+		if(EnterSTOPMode == 1)
+		{
+			printf("...MM...\r\n");
+			/* Request to enter STOP mode with regulator in low power mode*/
+			PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+			/* Configures system clock after wake-up from STOP: enable HSE, PLL and select 
+				 PLL as system clock source (HSE and PLL are disabled in STOP mode) */
+			SYSCLKConfig_STOP();
+			EnterSTOPMode = 0;
+		}
+		if(SysTickRestart == 1)
+		{
+			SysTick_Configuration();
+			SysTickRestart = 0;
+			printf("...Z...\r\n");
+		}
   }
 }
 

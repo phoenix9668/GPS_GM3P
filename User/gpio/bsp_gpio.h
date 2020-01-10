@@ -12,6 +12,10 @@
 #define	POWER_KEY_GPIO_PORT				GPIOB
 #define	POWER_KEY_GPIO_CLK        RCC_APB2Periph_GPIOB
 
+#define ADC_GPIO_PIN							GPIO_Pin_1
+#define	ADC_GPIO_PORT							GPIOB
+#define	ADC_GPIO_CLK        			RCC_APB2Periph_GPIOB
+
 #define Reload_GPIO_PIN						GPIO_Pin_3
 #define	Reload_GPIO_PORT					GPIOB
 #define	Reload_GPIO_CLK        		RCC_APB2Periph_GPIOB
@@ -32,6 +36,10 @@
 #define POWER_KEY_ON()						GPIO_ResetBits(POWER_KEY_GPIO_PORT,POWER_KEY_GPIO_PIN)
 #define POWER_KEY_OFF()    				GPIO_SetBits(POWER_KEY_GPIO_PORT,POWER_KEY_GPIO_PIN)
 #define POWER_KEY_TOG()   				GPIO_ToggleBits(POWER_KEY_GPIO_PORT,POWER_KEY_GPIO_PIN)
+
+#define ADC_V_OFF()								GPIO_ResetBits(ADC_GPIO_PORT,ADC_GPIO_PIN)
+#define ADC_V_ON()    						GPIO_SetBits(ADC_GPIO_PORT,ADC_GPIO_PIN)
+#define ADC_V_TOG()   						GPIO_ToggleBits(ADC_GPIO_PORT,ADC_GPIO_PIN)
 
 #define Reload_KEY_OFF()					GPIO_ResetBits(Reload_GPIO_PORT,Reload_GPIO_PIN)
 #define Reload_KEY_ON()    				GPIO_SetBits(Reload_GPIO_PORT,Reload_GPIO_PIN)

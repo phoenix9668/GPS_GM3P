@@ -23,7 +23,13 @@ void GPIO_Config(void)
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(POWER_KEY_GPIO_PORT, &GPIO_InitStructure);
-	
+
+		// configure ADC_V gpio
+    GPIO_InitStructure.GPIO_Pin = ADC_GPIO_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(ADC_GPIO_PORT, &GPIO_InitStructure);
+		
 	  // configure Reload gpio
     GPIO_InitStructure.GPIO_Pin = Reload_GPIO_PIN;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -44,10 +50,10 @@ void GPIO_Config(void)
 		
 		// 打开所有硬件
 		CHARGE_ON();
-		POWER_KEY_ON();
+		POWER_KEY_OFF();
 		Reload_KEY_ON();
 		wake_up_KEY_ON();
-		RESET_KEY_ON();
+		RESET_KEY_OFF();
 }
 
 /*********************************************END OF FILE**********************/

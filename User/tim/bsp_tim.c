@@ -13,16 +13,18 @@
 #include "bsp_usart.h"
 #include "bsp_gpio.h"   
 
-
-uint32_t GPStiming;
-uint32_t Delay_second_time;
-uint8_t gps_restart_flag;
-extern uint8_t gps_on;
-extern uint8_t gps_net;
-extern uint8_t gps_heart_on;
-extern uint8_t gps_heart_time;
-extern uint8_t gps_heart_out;
-
+ErrorStatus HSEStartUpStatus;
+__IO uint32_t GPStiming = 0;
+static __IO uint32_t TimingDelay;
+extern __IO uint8_t gps_restart_flag;
+extern __IO uint8_t gps_on;
+extern __IO uint8_t gps_net;
+extern __IO uint8_t gps_heart_on;
+extern __IO uint8_t gps_heart_time;
+extern __IO uint8_t gps_heart_out;
+extern __IO uint32_t TimeDisplay;
+extern __IO uint32_t EnterSTOPMode;
+extern __IO uint8_t MainState;
 /*===========================================================================
 * Timing_Decrement() => Decrements the Timing variable,Reset GPS module.				* 
 ============================================================================*/
@@ -33,64 +35,72 @@ extern uint8_t gps_heart_out;
   */
 void Timing_Decrement(void)
 {
-	if (GPStiming == 0)
+	if (GPStiming == 0)//10mins
 	{
-//		GPStiming = 7200000;//2hours
-		GPStiming = 600000;//10mins
+		GPStiming = 6000;
 	}
-//	else if (GPStiming == 7170000)
-	else if (GPStiming == 570000)
+	else if (GPStiming == 5990)
 	{
 		RESET_KEY_ON();
+		CHARGE_ON();
 		GPStiming--;
 	}
-//	else if (GPStiming == 7168000)
-	else if (GPStiming == 568000)
+	else if (GPStiming == 5980)
 	{
 		POWER_KEY_ON();
+		GPStiming--;
+	}
+	else if (GPStiming == 5880)
+	{
 		gps_restart_flag = 1;
 		printf("GPS Module Restarting\n");
 		GPStiming--;
 	}
-//	else if (GPStiming == 7108000)
-	else if (GPStiming == 508000)
+	else if (GPStiming == 5780)
+	{
+		/* Enable time update */
+    TimeDisplay = 1;
+		GPStiming--;
+	}
+	else if (GPStiming == 5080)
 	{
 		printf("GPS+GPRS module turn off\r\n");
 		printf("...3...\r\n");
 		GPStiming--;
 	}
-//	else if (GPStiming == 7107000)
-	else if (GPStiming == 507000)
+	else if (GPStiming == 5070)
 	{
 		printf("...2...\r\n");
 		GPStiming--;
 	}
-//	else if (GPStiming == 7106000)
-	else if (GPStiming == 506000)
+	else if (GPStiming == 5060)
 	{
 		printf("...1...\r\n");
 		GPStiming--;
 	}
-	//	else if (GPStiming == 7105000)
-	else if (GPStiming == 504000)
+	else if (GPStiming == 5040)
 	{
+		CHARGE_OFF();
 		POWER_KEY_OFF();
-		GPStiming--;
-	}
-	//	else if (GPStiming == 7104000)
-	else if (GPStiming == 503000)
-	{
-		RESET_KEY_OFF();
-		gps_on = 0x0;
-		gps_net = 0x0;
-		gps_heart_on = 0x0;
-		gps_heart_time = 0x0;
-		gps_heart_out = 0x0;
 		gps_restart_flag = 0x0;
 		GPStiming--;
-	}	
-	else
+	}
+	else if (GPStiming == 5030)
 	{
+		if(MainState == 1)
+		{
+			RESET_KEY_OFF();
+			gps_on = 0x0;
+			gps_net = 0x0;
+			gps_heart_on = 0x0;
+			gps_heart_time = 0x0;
+			gps_heart_out = 0x0;
+			EnterSTOPMode = 1;
+			printf("EnterSTOPMode = %x ",EnterSTOPMode);
+			SysTick->CTRL&=~SysTick_CTRL_ENABLE_Msk;
+		}
+	}
+	else{
 		GPStiming--;
 	}
 }
@@ -99,25 +109,91 @@ void Timing_Decrement(void)
 * Delay_Second() => Decrements the Timing variable,1 second									* 
 ============================================================================*/
 /**
-  * @brief  Decrements the Timing variable,Reset GPS module.
+  * @brief  Inserts a delay time.
+  * @param  nTime: specifies the delay time length, in milliseconds.
+  * @retval None
+  */
+void SysTickDelay(uint32_t nTime)
+{ 
+  TimingDelay = nTime;
+
+  while(TimingDelay != 0);
+}
+
+/**
+  * @brief  Decrements the TimingDelay variable.
   * @param  None
   * @retval None
   */
-void Delay_Second(void)
+void TimingDelay_Decrement(void)
 {
-	Delay_second_time = 1000;
-  while(Delay_second_time != 0)
+  if (TimingDelay != 0x00)
   {
+    TimingDelay--;
   }
 }
 
-void systick_init(void)
+/**
+  * @brief  Configures the SysTick to generate an interrupt each 100 millisecond.
+  * @param  None
+  * @retval None
+  */
+void SysTick_Configuration(void)
 {
-	if(SysTick_Config(SystemCoreClock / 1000))
-  {
+  /* Setup SysTick Timer for 100 msec interrupts  */
+  if (SysTick_Config(SystemCoreClock / 10))
+  { 
     /* Capture error */ 
-		Usart_SendString(DEBUG_USARTx,"SysTick_Config Error\n");
+//		Usart_SendString(DEBUG_USARTx,"SysTick_Config Error\n");
     while (1);
+  }
+  /* Set SysTick Priority to 3,3 */
+  NVIC_SetPriority(SysTick_IRQn, 0x0F);
+}
+
+/**
+  * @brief  Configures system clock after wake-up from STOP: enable HSE, PLL
+  *         and select PLL as system clock source.
+  * @param  None
+  * @retval None
+  */
+void SYSCLKConfig_STOP(void)
+{
+  /* Enable HSE */
+  RCC_HSEConfig(RCC_HSE_ON);
+
+  /* Wait till HSE is ready */
+  HSEStartUpStatus = RCC_WaitForHSEStartUp();
+
+  if(HSEStartUpStatus == SUCCESS)
+  {
+
+#ifdef STM32F10X_CL
+    /* Enable PLL2 */ 
+    RCC_PLL2Cmd(ENABLE);
+
+    /* Wait till PLL2 is ready */
+    while(RCC_GetFlagStatus(RCC_FLAG_PLL2RDY) == RESET)
+    {
+    }
+
+#endif
+
+    /* Enable PLL */ 
+    RCC_PLLCmd(ENABLE);
+
+    /* Wait till PLL is ready */
+    while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET)
+    {
+    }
+
+    /* Select PLL as system clock source */
+    RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
+
+    /* Wait till PLL is used as system clock source */
+    while(RCC_GetSYSCLKSource() != 0x08)
+    {
+    }
   }
 }
 

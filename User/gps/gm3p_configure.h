@@ -3,6 +3,7 @@
 
 #include "stm32f10x.h"
 
+/* Private function prototypes -----------------------------------------------*/
 void GM3P_INIT(void);
 void Get_LBS_INFO(void);
 void Get_GPS_INFO(void);

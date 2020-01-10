@@ -4,7 +4,9 @@
 #include "stm32f10x.h"
 
 void Timing_Decrement(void);
-void Delay_Second(void);
-void systick_init(void);
+void SysTickDelay(uint32_t nTime);
+void TimingDelay_Decrement(void);
+void SysTick_Configuration(void);
+void SYSCLKConfig_STOP(void);
 
 #endif /* __BSP_TIM_H */

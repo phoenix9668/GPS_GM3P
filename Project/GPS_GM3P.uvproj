@@ -375,7 +375,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F10X_MD</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Libraries\STM32F10x_StdPeriph_Driver\inc;..\Libraries\CMSIS\CM3\DeviceSupport\ST\STM32F10x;..\Libraries\CMSIS\CM3\CoreSupport;..\User;..\User\usart;..\User\gpio;..\User\gps;..\User\tim</IncludePath>
+              <IncludePath>..\Libraries\STM32F10x_StdPeriph_Driver\inc;..\Libraries\CMSIS\CM3\DeviceSupport\ST\STM32F10x;..\Libraries\CMSIS\CM3\CoreSupport;..\User;..\User\usart;..\User\gpio;..\User\gps;..\User\tim;..\User\rtc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -588,6 +588,11 @@
               <FileName>bsp_tim.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\tim\bsp_tim.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\rtc\bsp_rtc.c</FilePath>
             </File>
           </Files>
         </Group>

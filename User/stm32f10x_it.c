@@ -24,6 +24,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
 #include "bsp_tim.h"
+#include "bsp_rtc.h"
+#include "bsp_usart.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Template
   * @{
@@ -31,9 +33,17 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+unsigned int k;
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-extern uint32_t Delay_second_time;
+extern __IO uint32_t Delay_second_time;
+extern __IO uint32_t GPStiming;
+extern __IO uint32_t IntervalAdjust;
+extern __IO uint32_t SysTickRestart;
+extern uint8_t RxBuffer[];
+extern __IO uint8_t RxCounter;
+extern uint8_t NbrOfDataToRead;
+extern __IO uint8_t RecState;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -136,12 +146,8 @@ void PendSV_Handler(void)
   */
 void SysTick_Handler(void)
 {
+	TimingDelay_Decrement();
 	Timing_Decrement();
-	if(Delay_second_time != 0)
-	{
-		Delay_second_time--;
-	}
-	
 }
 
 /******************************************************************************/
@@ -150,6 +156,67 @@ void SysTick_Handler(void)
 /*  available peripheral interrupt handler's name please refer to the startup */
 /*  file (startup_stm32f10x_xx.s).                                            */
 /******************************************************************************/
+
+/**
+  * @brief  This function handles USARTy global interrupt request.
+  * @param  None
+  * @retval None
+  */
+void USARTy_IRQHandler(void)
+{
+	uint8_t Clear = Clear;
+	
+  if(USART_GetITStatus(USARTy, USART_IT_RXNE) != RESET)
+  {
+    /* Read one byte from the receive data register */
+    RxBuffer[RxCounter++] = USART_ReceiveData(USARTy);
+  }
+	if(USART_GetITStatus(USARTy, USART_IT_IDLE) != RESET)
+	{
+		Clear = USART1->SR;
+		Clear = USART1->DR;
+		/* Disable the USARTy Receive interrupt */
+		USART_ITConfig(USARTy, USART_IT_RXNE, DISABLE);
+		USART_ITConfig(USARTy, USART_IT_IDLE, DISABLE);
+		RecState = 1;
+//		for(k=0; k<RxBufferSize; k++)//for test
+//		{
+//			printf("%x ",RxBuffer[k]);
+//		}
+//		printf("\n");
+		RxCounter = 0x00;
+//		printf("ooooo\r\n");
+	}
+}
+
+/**
+  * @brief  This function handles RTC global interrupt request.
+  * @param  None
+  * @retval None
+  */
+void RTCAlarm_IRQHandler(void)
+{
+  if (RTC_GetITStatus(RTC_IT_ALR) != RESET)
+  {
+		EXTI_ClearITPendingBit(EXTI_Line17);
+		if(PWR_GetFlagStatus(PWR_FLAG_WU) != RESET)
+		{
+			PWR_ClearFlag(PWR_FLAG_WU);
+    }
+		/* Wait until last write operation on RTC registers has finished */
+    RTC_WaitForLastTask();  
+    /* Clear the RTC Second interrupt */
+    RTC_ClearITPendingBit(RTC_IT_ALR);
+    /* Wait until last write operation on RTC registers has finished */
+    RTC_WaitForLastTask();
+		
+		/* Enable interval update */
+		IntervalAdjust = 1;
+		/* Enable SysTick Restart */
+		SysTickRestart = 1;
+		GPStiming = 0;
+  }
+}
 
 /**
   * @brief  This function handles PPP interrupt request.
