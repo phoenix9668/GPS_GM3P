@@ -54,5 +54,6 @@
 #define RESET_KEY_TOG()   				GPIO_ToggleBits(RESET_GPIO_PORT,RESET_GPIO_PIN)
 
 void GPIO_Config(void);
+void GPIO_STOP_Config(void);
 
 #endif /* __GPIO_H */

@@ -138,13 +138,18 @@ int main(void)
 		Interval_Adjust();
 		if(EnterSTOPMode == 1)
 		{
-			printf("...MM...\r\n");
+			GPIO_STOP_Config();
+			/* Disable the USARTy */
+			USART_Cmd(USARTy, DISABLE);
 			/* Request to enter STOP mode with regulator in low power mode*/
 			PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
 			/* Configures system clock after wake-up from STOP: enable HSE, PLL and select 
 				 PLL as system clock source (HSE and PLL are disabled in STOP mode) */
 			SYSCLKConfig_STOP();
 			EnterSTOPMode = 0;
+			GPIO_Config();
+			/* Enable the USARTy */
+			USART_Cmd(USARTy, ENABLE);
 		}
 		if(SysTickRestart == 1)
 		{

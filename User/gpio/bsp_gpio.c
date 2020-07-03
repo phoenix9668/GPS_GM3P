@@ -56,4 +56,47 @@ void GPIO_Config(void)
 		RESET_KEY_OFF();
 }
 
+
+
+ /**
+  * @brief  control hardware
+  * @param  none
+  * @retval none
+  */
+void GPIO_STOP_Config(void)
+{
+		GPIO_InitTypeDef GPIO_InitStructure;
+	
+    /* Enable GPIOB clock */
+    RCC_APB2PeriphClockCmd(CHARGE_GPIO_CLK, ENABLE);
+	
+	  // configure POWER_KEY gpio
+//    GPIO_InitStructure.GPIO_Pin = POWER_KEY_GPIO_PIN;
+//    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+//    GPIO_Init(POWER_KEY_GPIO_PORT, &GPIO_InitStructure);
+
+		// configure ADC_V gpio
+    GPIO_InitStructure.GPIO_Pin = ADC_GPIO_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+    GPIO_Init(ADC_GPIO_PORT, &GPIO_InitStructure);
+		
+	  // configure Reload gpio
+    GPIO_InitStructure.GPIO_Pin = Reload_GPIO_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+    GPIO_Init(Reload_GPIO_PORT, &GPIO_InitStructure);
+		
+		// configure wake_up gpio
+    GPIO_InitStructure.GPIO_Pin = wake_up_GPIO_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+    GPIO_Init(wake_up_GPIO_PORT, &GPIO_InitStructure);
+		
+		// configure RESET gpio
+    GPIO_InitStructure.GPIO_Pin = RESET_GPIO_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+    GPIO_Init(RESET_GPIO_PORT, &GPIO_InitStructure);
+		
+		/* Enable GPIOB clock */
+    RCC_APB2PeriphClockCmd(CHARGE_GPIO_CLK, DISABLE);
+}
+
 /*********************************************END OF FILE**********************/
